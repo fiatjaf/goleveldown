@@ -1,7 +1,7 @@
-package leveldown
+package goleveldown
 
 import (
-	"github.com/fiatjaf/go-levelup"
+	"github.com/fiatjaf/levelup"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
@@ -52,41 +52,58 @@ func (l LevelDown) Batch(ops []levelup.Operation) error {
 	return l.db.Write(batch, nil)
 }
 
-func (l LevelDown) ReadRange(opts levelup.RangeOpts) levelup.ReadIterator {
+func (l LevelDown) ReadRange(opts *levelup.RangeOpts) levelup.ReadIterator {
+	if opts == nil {
+		opts = &levelup.RangeOpts{}
+	}
+	opts.FillDefaults()
+
 	r := util.Range{}
-	if opts.Start != "" {
-		r.Start = []byte(opts.Start)
-	}
-	if opts.End != "" {
-		r.Limit = []byte(opts.End)
-	}
-	if opts.Limit <= 0 {
-		opts.Limit = 9999999
-	}
+	r.Start = []byte(opts.Start)
+	r.Limit = []byte(opts.End)
 
 	iter := l.db.NewIterator(&r, nil)
+
+	// put the cursor in the right place.
+	var isvalid bool
+	if opts.Reverse {
+		isvalid = iter.Last()
+	} else {
+		isvalid = iter.Next()
+	}
+
 	return &ReadIterator{
 		iter:    iter,
 		opts:    opts,
-		scanned: 0,
+		count:   1,
+		isvalid: isvalid,
 	}
 }
 
 type ReadIterator struct {
 	iter    iterator.Iterator
-	opts    levelup.RangeOpts
-	scanned int
+	opts    *levelup.RangeOpts
+	count   int
+	isvalid bool
 }
 
-func (ri *ReadIterator) Next() bool {
-	has := ri.iter.Next()
-	if has {
-		ri.scanned++
-		if ri.opts.Limit < ri.scanned {
-			return false
-		}
+func (ri *ReadIterator) Valid() bool {
+	if !ri.isvalid {
+		return false
 	}
-	return has
+	if ri.count > ri.opts.Limit {
+		return false
+	}
+	return true
+}
+
+func (ri *ReadIterator) Next() {
+	ri.count++
+	if ri.opts.Reverse {
+		ri.isvalid = ri.iter.Prev()
+	} else {
+		ri.isvalid = ri.iter.Next()
+	}
 }
 
 func (ri *ReadIterator) Key() string   { return string(ri.iter.Key()) }
