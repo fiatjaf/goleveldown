@@ -4,12 +4,12 @@ import (
 	"os"
 
 	"github.com/fiatjaf/goleveldown"
-	"github.com/fiatjaf/levelup"
+	examples "github.com/fiatjaf/levelup/examples"
 )
 
 func main() {
 	db := goleveldown.NewDatabase("/tmp/leveldownexample")
 	defer os.RemoveAll("/tmp/leveldownexample")
 
-	levelup.Example(db)
+	examples.Example(db)
 }
