@@ -1,6 +1,8 @@
 package goleveldown
 
 import (
+	"os"
+
 	"github.com/fiatjaf/levelup"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
@@ -9,7 +11,8 @@ import (
 )
 
 type LevelDown struct {
-	db *leveldb.DB
+	db   *leveldb.DB
+	path string
 }
 
 func NewDatabase(path string) levelup.DB {
@@ -17,7 +20,13 @@ func NewDatabase(path string) levelup.DB {
 	if err != nil {
 		panic(err)
 	}
-	return &LevelDown{db}
+	return &LevelDown{db, path}
+}
+
+func (l LevelDown) Close() { l.db.Close() }
+func (l LevelDown) Erase() {
+	l.Close()
+	os.RemoveAll(l.path)
 }
 
 func (l LevelDown) Put(key, value string) error {
