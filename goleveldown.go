@@ -29,33 +29,33 @@ func (l LevelDown) Erase() {
 	os.RemoveAll(l.path)
 }
 
-func (l LevelDown) Put(key, value string) error {
-	return l.db.Put([]byte(key), []byte(value), nil)
+func (l LevelDown) Put(key, value []byte) error {
+	return l.db.Put(key, value, nil)
 }
 
-func (l LevelDown) Get(key string) (string, error) {
-	data, err := l.db.Get([]byte(key), nil)
+func (l LevelDown) Get(key []byte) ([]byte, error) {
+	data, err := l.db.Get(key, nil)
 	if err != nil {
 		if err == errors.ErrNotFound {
-			return "", levelup.NotFound
+			return nil, levelup.NotFound
 		}
-		return "", err
+		return nil, err
 	}
-	return string(data), nil
+	return data, nil
 }
 
-func (l LevelDown) Del(key string) error {
-	return l.db.Delete([]byte(key), nil)
+func (l LevelDown) Del(key []byte) error {
+	return l.db.Delete(key, nil)
 }
 
 func (l LevelDown) Batch(ops []levelup.Operation) error {
 	batch := new(leveldb.Batch)
 	for _, op := range ops {
-		switch op["type"] {
+		switch op.Type {
 		case "put":
-			batch.Put([]byte(op["key"]), []byte(op["value"]))
+			batch.Put(op.Key, op.Value)
 		case "del":
-			batch.Delete([]byte(op["key"]))
+			batch.Delete(op.Key)
 		}
 	}
 	return l.db.Write(batch, nil)
@@ -68,8 +68,8 @@ func (l LevelDown) ReadRange(opts *levelup.RangeOpts) levelup.ReadIterator {
 	opts.FillDefaults()
 
 	r := util.Range{}
-	r.Start = []byte(opts.Start)
-	r.Limit = []byte(opts.End)
+	r.Start = opts.Start
+	r.Limit = opts.End
 
 	iter := l.db.NewIterator(&r, nil)
 
@@ -115,7 +115,7 @@ func (ri *ReadIterator) Next() {
 	}
 }
 
-func (ri *ReadIterator) Key() string   { return string(ri.iter.Key()) }
-func (ri *ReadIterator) Value() string { return string(ri.iter.Value()) }
+func (ri *ReadIterator) Key() []byte   { return ri.iter.Key() }
+func (ri *ReadIterator) Value() []byte { return ri.iter.Value() }
 func (ri *ReadIterator) Error() error  { return ri.iter.Error() }
 func (ri *ReadIterator) Release()      { ri.iter.Release() }
